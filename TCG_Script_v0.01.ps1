@@ -117,10 +117,10 @@ return $users
  }
 
 ##################
-$CertThumbprint = '697A3A003B73B21E91F8503CFA7B4F0078C2CC5B'
-$AppID = '0bc7268e-65b5-409d-b2a0-8171027fc3f0'
-$TenantName = 'BRAGGABOUTMYCLOUD.ONMICROSOFT.COM'
-$breakglass = 'christopher_bragg@braggaboutmycloud.onmicrosoft.com'
+$CertThumbprint = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+$AppID = 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'
+$TenantName = 'XXXXXXXXXXXXXXX.ONMICROSOFT.COM'
+$breakglass = 'USERNAME@DOMAIN.onmicrosoft.com'
 $Environment = "O365Default"
 $csv = "C:\users\username\Desktop\allusers.csv"
 $sleeptime = '600' #The sleeptime is how long the script will sleep before it starts to run again. Some services will get overloaded if they don't have a pause at least 5 minutes every hour.
