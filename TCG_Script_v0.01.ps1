@@ -4,10 +4,9 @@
 ##
 ##  Version 0.01
 ##  
-##  ##  https://github.com/lithnet/resourcemanagement-webservice/
 ##
 ##  Created By: Chris Bragg
-##  https://github.com/braggaboutme/MIM-Portal-PSModule
+##  https://github.com/braggaboutme/Bulk-EXO-Audit-Disabled-Users/
 ##
 ##  Changelog:
 ##  v0.01 - 4/15/2021 - First Draft Created
