@@ -152,13 +152,13 @@ param($msg)
 "$(Get-Date -Format G) : $msg" | Out-File -FilePath $logpath -Append -Force
 }
 ##################
-$CertThumbprint = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-$AppID = 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'
-$TenantName = 'XXXXXXXXXXXXXXX.ONMICROSOFT.COM'
-$breakglass = 'USERNAME@DOMAIN.onmicrosoft.com'
-$Environment = "O365Default"
-$csv = "C:\users\username\Desktop\allusers.csv"
-$logpath = "C:\users\username\Desktop\TCGScript_LogFile.log"
+#$CertThumbprint = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+#$AppID = 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'
+#$TenantName = 'XXXXXXXXXXXXXXX.ONMICROSOFT.COM'
+#$breakglass = 'USERNAME@DOMAIN.onmicrosoft.com'
+#$Environment = "O365Default"
+#$csv = "C:\users\username\Desktop\allusers.csv"
+#$logpath = "C:\users\username\Desktop\TCGScript_LogFile.log"
 $sleeptime = '600' #The sleeptime is how long the script will sleep before it starts to run again. Some services will get overloaded if they don't have a pause at least 5 minutes every hour.
 $timeout = New-TimeSpan -Minutes 50 #usually 50 minutes before it times out to give the Azure or M365 service some rest time.
 ##
