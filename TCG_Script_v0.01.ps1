@@ -1,8 +1,8 @@
-﻿#########################################################################################################
+#########################################################################################################
 ##   
 ##  Update-All-M365Users-to-have-PSRemoting-Disabled-And-Auditing-Enabled
 ##
-##  Version 0.01
+##  Version 0.02
 ##  
 ##
 ##  Created By: Chris Bragg
@@ -10,12 +10,15 @@
 ##
 ##  Changelog:
 ##  v0.01 - 4/15/2021 - First Draft Created
+##  v0.02 - 4/16/2021 - Added additional error correction
 ##
 ################################################
 
 #############################
 
 #Get and Set Bulk EXO Users for PowerShell Remoting to Disabled and Auditing enabled
+
+#Within ISE, minimize the function using the minus symbol and you'll see environment specific variables
 
 #############################
 function Get-BulkEXOUAuditDisabledUsers
@@ -87,11 +90,23 @@ Else
         {
         Write-Host "Connecting to Exchange Online"
         $Sw = [Diagnostics.stopwatch]::StartNew()
-        Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment -ErrorAction Stop
+        Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment -ErrorAction Stop | Out-Null
         }
     Catch [System.ArgumentNullException]
         {
         Write-Host "Missing or incorrect AppID or TenantName" -ForegroundColor Red
+        }
+    Catch [System.AggregateException]
+        {
+        Write-Host "Possible Issues
+        1) You are possibly using the wrong type of certificate. Please make sure your certificate is a non-CNG cert because CNG certs don't work with this version of the Exchange Online Management PowerShell module
+        2) You don't have the correct API's exposed for the Exchange Online Management PowerShell module to connect." -ForegroundColor Red
+        }
+    Catch [System.Management.Automation.Remoting.PSRemotingTransportException]
+        {
+        Write-Host "Possible Issues
+        1) Please make sure you include the proper API permissions in your app registration. When adding the API permissions, search under 'APIs my organization uses' for '00000002-0000-0ff1-ce00-000000000000' to get the Exchange Online APIs. Then grant permissions to the 'Exchange.ManageAsApp' API
+        2) You don't have the correct Azure AD Role for your App Registration to perform this task. Please add this App Registration to the Exchange recipient administrator Role if you don't need the auditing. If you require the auditenabled flag set, this app registration will require 'Exchange Administrator'" -ForegroundColor Red
         }
 
     #Pulling Users from Exchange Online
@@ -99,12 +114,12 @@ Else
         {
             Try
                 {
-                Write-Host "Getting Audit Disabled users from Exchange Online"
+                Write-Host "Getting Audit Disabled users from Exchange Online" -ForegroundColor Green
                 $users = Get-EXOMailbox -ResultSize Unlimited -PropertySets Audit -Filter "AuditEnabled -ne $false -and UserPrincipalName -ne '$($breakglass)'" -ErrorAction Stop
                 }
             Catch [Microsoft.Exchange.Management.RestApiClient.RestClientException]
                 {
-                Write-host "Break Glass account is not defined" -ForegroundColor Red
+                Write-host "Break Glass account is not defined OR your are not connected to Exchange Online" -ForegroundColor Red
                 }
             Catch [System.AggregateException]
                 {
@@ -125,8 +140,6 @@ $Environment = "O365Default"
 $csv = "C:\users\username\Desktop\allusers.csv"
 $sleeptime = '600' #The sleeptime is how long the script will sleep before it starts to run again. Some services will get overloaded if they don't have a pause at least 5 minutes every hour.
 $timeout = New-TimeSpan -Minutes 50 #usually 50 minutes before it times out to give the Azure or M365 service some rest time.
-#################    
-
 
 ##
 ## There are two options for the get user commands, please read both
@@ -138,9 +151,9 @@ $users = Get-BulkEXOUAuditDisabledUsers -CertThumbprint $CertThumbprint -AppID $
 
 
 $Sw = [Diagnostics.stopwatch]::StartNew()
-Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment
+Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment | Out-Null
     #Processing Users
-    foreach ($user in $users.UserPrincipalName)
+    foreach ($user in $($users.UserPrincipalName))
         {
         #This while loop checks the timestamp and then re-authenticates every time the stopwatch hits the $timeout variable
         while ($Sw.Elapsed -gt $timeout)
@@ -148,20 +161,41 @@ Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Org
             Write-Host "Disconnecting" -ForegroundColor Yellow
             Write-Host "Current elapsed time is $($sw.elapsed)" -ForegroundColor Yellow
             Disconnect-ExchangeOnline -Confirm:$false
+            Write-Host "Last User set was $($user)" -ForegroundColor Green
             Write-Host "Sleeping.... ZZZzzzzzZZZZZzzzz for $($sleeptime) seconds" -ForegroundColor Cyan
             Start-Sleep -Seconds $sleeptime
             write-host "Connecting" -ForegroundColor Yellow
-            Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment
+            Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment | Out-Null
             $Sw = [Diagnostics.stopwatch]::StartNew()
             Write-Host "Timer Reset" -ForegroundColor Cyan
             }
 
         #Sets the Audit and PowerShell Remote settings on the user, comment out all Write-Host sections here for better performance
-        Set-User -Identity $user -RemotePowerShellEnabled $false
-        Write-Host "$User disabled for remote PowerShell" -ForegroundColor DarkGreen
-        Set-Mailbox -Identity $user -AuditEnabled $true -AuditOwner @{add='MailboxLogin'}
-        Write-Host "$($User) enabled for auditing" -ForegroundColor Magenta
-        
+        If ($user -ne $null)
+            {
+            Try
+                {
+                Set-User -Identity $($user) -RemotePowerShellEnabled $false
+                Write-Host "$($User) is being set for Remote PowerShell disable" -ForegroundColor Green
+                }
+            Catch [System.Management.Automation.RemoteException]
+                {
+                Write-Host "There's most likely a problem with the UPN for $($user)" -ForegroundColor Red
+                }
+            Try
+                {
+                Set-Mailbox -Identity $user -AuditEnabled $true -AuditOwner @{add='MailboxLogin'}
+                Write-Host "$($user) enabled for auditing" -ForegroundColor DarkCyan
+                }
+            Catch [System.Management.Automation.CommandNotFoundException]
+                {
+                Write-Host "The app registration running this script doesn't have enough permission in Exchange Online. Please ensure the App registration is granted the 'Exchange Administrator' Role" -ForegroundColor Red
+                }
+            Catch [System.Management.Automation.RemoteException]
+                {
+                Write-Host "There's most likely a problem with the UPN for $($user)" -ForegroundColor Red
+                }
+            }
     }
 $Sw.stop
 Disconnect-ExchangeOnline -Confirm:$false
