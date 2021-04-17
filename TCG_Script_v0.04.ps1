@@ -12,6 +12,7 @@
 ##  v0.01 - 4/15/2021 - First Draft Created
 ##  v0.02 - 4/16/2021 - Added additional error correction
 ##  v0.03 - 4/16/2021 - Added logging as a mandatory option which significantly improves performance
+##  v0.04 - 4/16/2021 - Boo Boo made, the audit enabled and powershell remoting attributes were set in reverse
 ##
 ################################################
 
@@ -193,7 +194,7 @@ Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Org
             {
             Try
                 {
-                Set-User -Identity $($user) -RemotePowerShellEnabled $true
+                Set-User -Identity $($user) -RemotePowerShellEnabled $false
                 Write-Log "$($User) is being set for Remote PowerShell disable"
                 }
             Catch [System.Management.Automation.RemoteException]
@@ -202,7 +203,7 @@ Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Org
                 }
             Try
                 {
-                Set-Mailbox -Identity $user -AuditEnabled $false -AuditOwner @{add='MailboxLogin'}
+                Set-Mailbox -Identity $user -AuditEnabled $true -AuditOwner @{add='MailboxLogin'}
                 Write-Log "$($user) enabled for auditing"
                 }
             Catch [System.Management.Automation.CommandNotFoundException]
