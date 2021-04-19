@@ -2,7 +2,7 @@
 ##   
 ##  Update-All-M365Users-to-have-PSRemoting-Disabled-And-Auditing-Enabled
 ##
-##  Version 0.03
+##  Version 0.04
 ##  
 ##
 ##  Created By: Chris Bragg
