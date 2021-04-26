@@ -13,7 +13,7 @@
 ##  v0.02 - 4/16/2021 - Added additional error correction
 ##  v0.03 - 4/16/2021 - Added logging as a mandatory option which significantly improves performance
 ##  v0.04 - 4/16/2021 - Boo Boo made, the audit enabled and powershell remoting attributes were set in reverse
-##  v0.05 - 4/26/2021 - Fixed a bug with CSV file path
+##  v0.05 - 4/26/2021 - Fixed a bug with CSV file path, optimized csv pull time, and corrected log write issue
 ##
 ################################################
 
@@ -76,17 +76,20 @@ Else
     Catch [System.IO.FileNotFoundException]
         {
         Write-Host "Your Exchange Online Management module version is either not installed, or not at least version 2.0.4" -ForegroundColor Red
-        Write-Log "Your Exchange Online Management module version is either not installed, or not at least version 2.0.4"
+        Write-Log "Your Exchange Online Management module version is either not installed, or not at least version 2.0.4 & $_"
         }
 
     #Getting users from CSV
     If ($InputFile -ne $null)
         {
         Write-Host "Getting users from csv" -ForegroundColor Yellow
-        Write-Log "Getting users from csv & $_.message"
+        Write-Log "Getting users from csv & $_"
         $users = get-content -Path $($InputFile)
         }
-    
+
+
+If ($InputFile -eq $null)
+    {    
     #Starting timer
     $Sw = [Diagnostics.stopwatch]::StartNew()
     
@@ -94,14 +97,14 @@ Else
     Try
         {
         Write-Host "Connecting to Exchange Online"
-        Write-Log "Connecting to Exchange Online & $_.message"
+        Write-Log "Connecting to Exchange Online & $_"
         $Sw = [Diagnostics.stopwatch]::StartNew()
         Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment -ShowBanner:$false -ErrorAction Stop
         }
     Catch [System.ArgumentNullException]
         {
         Write-Host "Missing or incorrect AppID or TenantName" -ForegroundColor Red
-        Write-Log "Missing or incorrect AppID or TenantName & $_.message"
+        Write-Log "Missing or incorrect AppID or TenantName & $_"
         }
     Catch [System.AggregateException]
         {
@@ -110,7 +113,7 @@ Else
         2) You don't have the correct API's exposed for the Exchange Online Management PowerShell module to connect." -ForegroundColor Red
         Write-Log "Possible Issues
         1) You are possibly using the wrong type of certificate. Please make sure your certificate is a non-CNG cert because CNG certs don't work with this version of the Exchange Online Management PowerShell module
-        2) You don't have the correct API's exposed for the Exchange Online Management PowerShell module to connect. & $_.message"
+        2) You don't have the correct API's exposed for the Exchange Online Management PowerShell module to connect. & $_"
         }
     Catch [System.Management.Automation.Remoting.PSRemotingTransportException]
         {
@@ -119,32 +122,31 @@ Else
         2) You don't have the correct Azure AD Role for your App Registration to perform this task. Please add this App Registration to the Exchange recipient administrator Role if you don't need the auditing. If you require the auditenabled flag set, this app registration will require 'Exchange Administrator'" -ForegroundColor Red
         Write-Log "Possible Issues
         1) Please make sure you include the proper API permissions in your app registration. When adding the API permissions, search under 'APIs my organization uses' for '00000002-0000-0ff1-ce00-000000000000' to get the Exchange Online APIs. Then grant permissions to the 'Exchange.ManageAsApp' API
-        2) You don't have the correct Azure AD Role for your App Registration to perform this task. Please add this App Registration to the Exchange recipient administrator Role if you don't need the auditing. If you require the auditenabled flag set, this app registration will require 'Exchange Administrator' & $_.message"
+        2) You don't have the correct Azure AD Role for your App Registration to perform this task. Please add this App Registration to the Exchange recipient administrator Role if you don't need the auditing. If you require the auditenabled flag set, this app registration will require 'Exchange Administrator' & $_"
         }
 
 
     #Pulling Users from Exchange Online
-    If ($InputFile -eq $null)
-        {
             Try
                 {
                 Write-Host "Getting Audit Disabled users from Exchange Online" -ForegroundColor Green
-                Write-Log "Getting Audit Disabled users from Exchange Online & $_.message"
+                Write-Log "Getting Audit Disabled users from Exchange Online & $_"
                 $users = Get-EXOMailbox -ResultSize Unlimited -PropertySets Audit -Filter "AuditEnabled -ne $true -and UserPrincipalName -ne '$($breakglass)'" -ErrorAction Stop
                 }
             Catch [Microsoft.Exchange.Management.RestApiClient.RestClientException]
                 {
                 Write-host "Break Glass account is not defined OR your are not connected to Exchange Online" -ForegroundColor Red
-                Write-Log "Break Glass account is not defined OR your are not connected to Exchange Online & $_.message"
+                Write-Log "Break Glass account is not defined OR your are not connected to Exchange Online & $_"
                 }
             Catch [System.AggregateException]
                 {
                 Write-host "Invalid Filter" -ForegroundColor Red
-                Write-Log "Invalid Filter & $_.Log"
+                Write-Log "Invalid Filter & $_"
                 }
-        }
+
 Disconnect-ExchangeOnline -Confirm:$false
 $Sw.stop
+    }
 return $users
 }
 function Write-Log
@@ -165,16 +167,34 @@ $timeout = New-TimeSpan -Minutes 50 #usually 50 minutes before it times out to g
 ##
 ## There are two options for the get user commands, please read both
 ##
+$ReadHost = Read-Host "MAKE A SELECTION:
+1: CSV input with no header an only UserPrincipalNames
+2: Pull all users... This is much slower and will timeout if more than 500K users
+"
 #OPTION 1: Get from CSV... PREFERRED METHOD... CSV must have no headers with only the UserPrincipalName of all users... CSV pull script not included, but I recommend Graph to pull all users.
-#$users = Get-BulkEXOUAuditDisabledUsers -CertThumbprint $CertThumbprint -AppID $AppID -TenantName $TenantName -Environment $Environment -breakglass $breakglass -InputFile $csv | Select UserPrincipalName -ErrorAction Stop
+If ($ReadHost -eq "1")
+{
+Write-Host "Option 1 was selected... Make sure that the CSV file doesn't have a header"
+$users = Get-BulkEXOUAuditDisabledUsers -CertThumbprint $CertThumbprint -AppID $AppID -TenantName $TenantName -Environment $Environment -breakglass $breakglass -InputFile $csv -ErrorAction Stop
+}
 #OPTION 2: Get from tenant... MUCH SLOWER... Higher chance for timeout before the script even runs
+If ($ReadHost -eq "2")
+{
 Write-Host "Option 2 was selected... Be aware that if you have more than 500K users, this might timeout before it finishes. A CSV might be preferred"
 $users = Get-BulkEXOUAuditDisabledUsers -CertThumbprint $CertThumbprint -AppID $AppID -TenantName $TenantName -Environment $Environment -breakglass $breakglass | Select UserPrincipalName -ErrorAction Stop
+}
+If ($users -eq $null)
+{
+Write-Host "Stop Script, $users variable is blank... Check the CSV or the connection and then re-run the script" -ForegroundColor Red
+Write-Log "Stop Script, $users variable is blank... Check the CSV or the connection and then re-run the script"
+Pause
+Break
+}
 
 $Sw = [Diagnostics.stopwatch]::StartNew()
 Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment -ShowBanner:$false 
     #Processing Users
-    foreach ($user in $($users.UserPrincipalName))
+    foreach ($user in $($users))
         {
         #This while loop checks the timestamp and then re-authenticates every time the stopwatch hits the $timeout variable
         while ($Sw.Elapsed -gt $timeout)
@@ -195,7 +215,7 @@ Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Org
             {
             Try
                 {
-                Set-User -Identity $($user) -RemotePowerShellEnabled $false
+                Set-User -Identity $($user) -RemotePowerShellEnabled $false -ErrorAction Ignore -InformationAction Ignore
                 Write-Log "$($User) is being set for Remote PowerShell disable"
                 }
             Catch [System.Management.Automation.RemoteException]
@@ -204,7 +224,7 @@ Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Org
                 }
             Try
                 {
-                Set-Mailbox -Identity $user -AuditEnabled $true -AuditOwner @{add='MailboxLogin'}
+                Set-Mailbox -Identity $user -AuditEnabled $true -AuditOwner @{add='MailboxLogin'} -ErrorAction Ignore -InformationAction Ignore
                 Write-Log "$($user) enabled for auditing"
                 }
             Catch [System.Management.Automation.CommandNotFoundException]
