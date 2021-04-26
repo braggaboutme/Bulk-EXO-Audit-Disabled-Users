@@ -2,7 +2,7 @@
 ##   
 ##  Update-All-M365Users-to-have-PSRemoting-Disabled-And-Auditing-Enabled
 ##
-##  Version 0.04
+##  Version 0.05
 ##  
 ##
 ##  Created By: Chris Bragg
@@ -13,6 +13,7 @@
 ##  v0.02 - 4/16/2021 - Added additional error correction
 ##  v0.03 - 4/16/2021 - Added logging as a mandatory option which significantly improves performance
 ##  v0.04 - 4/16/2021 - Boo Boo made, the audit enabled and powershell remoting attributes were set in reverse
+##  v0.05 - 4/26/2021 - Fixed a bug with CSV file path
 ##
 ################################################
 
@@ -79,11 +80,11 @@ Else
         }
 
     #Getting users from CSV
-    If ($InputPath -ne $null)
+    If ($InputFile -ne $null)
         {
         Write-Host "Getting users from csv" -ForegroundColor Yellow
         Write-Log "Getting users from csv & $_.message"
-        $users = get-content -Path $($InputPath)
+        $users = get-content -Path $($InputFile)
         }
     
     #Starting timer
