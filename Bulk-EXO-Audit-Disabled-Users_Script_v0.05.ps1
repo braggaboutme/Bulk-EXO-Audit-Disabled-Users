@@ -124,7 +124,7 @@ Else
 
 
     #Pulling Users from Exchange Online
-    If ($InputPath -eq $null)
+    If ($InputFile -eq $null)
         {
             Try
                 {
