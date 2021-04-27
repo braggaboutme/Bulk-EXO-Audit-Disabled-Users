@@ -2,7 +2,7 @@
 ##   
 ##  Update-All-M365Users-to-have-PSRemoting-Disabled-And-Auditing-Enabled
 ##
-##  Version 0.05
+##  Version 0.06
 ##  
 ##
 ##  Created By: Chris Bragg
@@ -14,6 +14,7 @@
 ##  v0.03 - 4/16/2021 - Added logging as a mandatory option which significantly improves performance
 ##  v0.04 - 4/16/2021 - Boo Boo made, the audit enabled and powershell remoting attributes were set in reverse
 ##  v0.05 - 4/26/2021 - Fixed a bug with CSV file path, optimized csv pull time, and corrected log write issue
+##  v0.06 - 4/27/2021 - Added some error correction logic and created a selection for csv or no csv
 ##
 ################################################
 
@@ -145,7 +146,7 @@ If ($InputFile -eq $null)
                 }
 
 Disconnect-ExchangeOnline -Confirm:$false
-$Sw.stop
+$Sw.stop | Out-Null
     }
 return $users
 }
@@ -155,20 +156,20 @@ param($msg)
 "$(Get-Date -Format G) : $msg" | Out-File -FilePath $logpath -Append -Force
 }
 ##################
-#$CertThumbprint = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-#$AppID = 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'
-#$TenantName = 'XXXXXXXXXXXXXXX.ONMICROSOFT.COM'
-#$breakglass = 'USERNAME@DOMAIN.onmicrosoft.com'
-#$Environment = "O365Default"
-#$csv = "C:\users\username\Desktop\allusers.csv"
-#$logpath = "C:\users\username\Desktop\TCGScript_LogFile.log"
+$CertThumbprint = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+$AppID = 'f62ed9c9-32b9-4d63-b85c-6551e91009be'
+$TenantName = 'XXXXXXXXXXXXX.ONMICROSOFT.COM'
+$breakglass = 'XXXXXXXXXXX@XXXXXXX.onmicrosoft.com'
+$Environment = "O365Default"
+$csv = "C:\users\username\Desktop\userfile.csv"
+$logpath = "C:\users\username\Desktop\Script_LogFile.log"
 $sleeptime = '600' #The sleeptime is how long the script will sleep before it starts to run again. Some services will get overloaded if they don't have a pause at least 5 minutes every hour.
 $timeout = New-TimeSpan -Minutes 50 #usually 50 minutes before it times out to give the Azure or M365 service some rest time.
 ##
 ## There are two options for the get user commands, please read both
 ##
 $ReadHost = Read-Host "MAKE A SELECTION:
-1: CSV input with no header an only UserPrincipalNames
+1: CSV input with no header and only UserPrincipalNames
 2: Pull all users... This is much slower and will timeout if more than 500K users
 "
 #OPTION 1: Get from CSV... PREFERRED METHOD... CSV must have no headers with only the UserPrincipalName of all users... CSV pull script not included, but I recommend Graph to pull all users.
@@ -185,8 +186,8 @@ $users = Get-BulkEXOUAuditDisabledUsers -CertThumbprint $CertThumbprint -AppID $
 }
 If ($users -eq $null)
 {
-Write-Host "Stop Script, $users variable is blank... Check the CSV or the connection and then re-run the script" -ForegroundColor Red
-Write-Log "Stop Script, $users variable is blank... Check the CSV or the connection and then re-run the script"
+Write-Host "Stop Script, the users variable is blank... Check the CSV or the connection and then re-run the script" -ForegroundColor Red
+Write-Log "Stop Script, the users variable is blank... Check the CSV or the connection and then re-run the script"
 Pause
 Break
 }
@@ -199,16 +200,16 @@ Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Org
         #This while loop checks the timestamp and then re-authenticates every time the stopwatch hits the $timeout variable
         while ($Sw.Elapsed -gt $timeout)
             {
-            Write-Log "Disconnecting" -ForegroundColor Yellow
-            Write-Log "Current elapsed time is $($sw.elapsed)" -ForegroundColor Yellow
+            Write-Log "Disconnecting"
+            Write-Log "Current elapsed time is $($sw.elapsed)"
             Disconnect-ExchangeOnline -Confirm:$false
-            Write-Log "Last User set was $($user)" -ForegroundColor Green
-            Write-Log "Sleeping.... ZZZzzzzzZZZZZzzzz for $($sleeptime) seconds" -ForegroundColor Cyan
+            Write-Log "Last User set was $($user)"
+            Write-Log "Sleeping.... ZZZzzzzzZZZZZzzzz for $($sleeptime) seconds"
             Start-Sleep -Seconds $sleeptime
-            write-Log "Connecting" -ForegroundColor Yellow
+            write-Log "Connecting"
             Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Organization $TenantName -ExchangeEnvironmentName $Environment -ShowBanner:$false -ErrorAction Stop
             $Sw = [Diagnostics.stopwatch]::StartNew()
-            Write-Log "Timer Reset" -ForegroundColor Cyan
+            Write-Log "Timer Reset"
             }
         #Sets the Audit and PowerShell Remote settings on the user
         If ($user -ne $null)
@@ -237,5 +238,5 @@ Connect-ExchangeOnline -CertificateThumbPrint $CertThumbprint -AppID $AppID -Org
                 }
             }
     }
-$Sw.stop
+$Sw.stop | Out-Null
 Disconnect-ExchangeOnline -Confirm:$false
