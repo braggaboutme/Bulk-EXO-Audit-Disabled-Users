@@ -27,6 +27,6 @@ Type this number into the search "00000002-0000-0ff1-ce00-000000000000" to find 
 5) After the API is added, click the checkmark for "Grant admin consent" and select "yes"
 6) Now that we have the correct API's, we need to assign Exchange permissions. Navigate to Azure Active Directory and go to "Roles and Administrators". Select "Exchange administrators" and click "Add assignment". Type the name of your App registration into the list and add that app to the Exchange Administrator Role.
 
-SECURITY WARNING:
+**SECURITY WARNING:**
 The reason this script needs the Exchange Administrator rather than Exchange recipient admin is because that AAD Role is required to set the Audit Enabled flag. If you don't want to set the Audit Enabled flag, then you can use other permissions like Exchange Recipient Admin.
 
