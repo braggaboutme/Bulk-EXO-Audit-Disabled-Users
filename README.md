@@ -11,15 +11,15 @@ In order to get this script to work, you'll need the correct permissions in your
 
 2) Inside your app registration, click on "Certificates & secrets". Select "Upload Certificate" and upload your certificate.
 
-NOTE: This certificate must be a non-CNG cert or else the script will fail.
+**NOTE:** This certificate must be a non-CNG cert or else the script will fail.
 
 If you are using self-signed certs, this script will help create a self signed cert to get you started.
 
-New-SelfSignedCertificate -FriendlyName "Exch Cert Auth" -Subject "Exch Cert Auth" -CertStoreLocation "cert:\CurrentUser\My" -KeySpec KeyExchange
+_New-SelfSignedCertificate -FriendlyName "Exch Cert Auth" -Subject "Exch Cert Auth" -CertStoreLocation "cert:\CurrentUser\My" -KeySpec KeyExchange_
 
-$cert = Get-ChildItem -Path Cert:\CurrentUser\My\CERTTHUMBPRINTGOESHERE
+_$cert = Get-ChildItem -Path Cert:\CurrentUser\My\CERTTHUMBPRINTGOESHERE_
 
-Export-Certificate -Cert $cert -FilePath C:\Users\username\Desktop\exchauth.cer
+_Export-Certificate -Cert $cert -FilePath C:\Users\username\Desktop\exchauth.cer_
 
 3) Next you'll need to expose the API's for this to work. Navigate to "API Permissions" and select "Add a permission". At the top, select "APIs my organization uses".
 Type this number into the search "00000002-0000-0ff1-ce00-000000000000" to find the "Office 365 Exchange Online" APIs.
